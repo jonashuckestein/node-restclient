@@ -16,7 +16,9 @@
  * @voodootikigod
  */
  
-var http = require("http"), base64 = require("./base64");
+// the _url var is underscored to avoid conflicts with all the url vars in here
+// I really didn't have much time to make this work with new nodejs versions ... (@jonashuckestein)
+var http = require("http"), base64 = require("./base64"), _url = require("url"), sys=require("sys");
 
 
 var RestClient = (function () {  
@@ -65,7 +67,7 @@ var RestClient = (function () {
     if (typeof callback === "string") {
       type = callback;
     }
-    var uri = http.parseUri(url);
+    var uri = _url.parse(url);
     var headers = {};
     if (!headers["Host"] && uri.host) {
       headers["Host"] = uri.host;
@@ -83,24 +85,26 @@ var RestClient = (function () {
      encoded_data = params(data); 
      headers["Content-Length"] = encoded_data.length;
     }
-    var result = client[method](uri.path, headers);
+
+    var result = client.request(method.toUpperCase(), uri.pathname, headers);
     if (encoded_data) {
-      result.sendBody(encoded_data);
+      result.write(encoded_data);
     }
+    result.end();
     if (typeof callback === "function") {
-      result.finish(function (response) {
-        var body = "";
-        response.addListener("body", function (chunk) {
-          body += chunk;
+        var data_string = "";
+        result.addListener("response", function(response) {
+           response.addListener("data", function(chunk) {
+              data_string += chunk;
+           });
+           response.addListener("end", function() {
+               if (type == "json") {
+                 callback(JSON.parse(data_string));
+               } else {
+                 callback(data_string);
+               }
+           });
         });
-        response.addListener("complete", function () {
-          if (type == "json") {
-            callback(JSON.parse(body));
-          } else {
-            callback(body);
-          }
-        });
-      });
     }
     return result;
   };

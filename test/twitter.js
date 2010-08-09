@@ -5,6 +5,7 @@ var fail = false
 
 // Test JSON encoding
 var res = restclient.get("http://twitter.com/statuses/public_timeline.json", function(result) {
+
   if ((typeof result !== "object")) {
     fail = true;
   }
